@@ -90,12 +90,15 @@ int sis_terminar_proceso();
 
 int sis_escribir();
 
+int sis_nueva();
+
 /*
  * Variable global que contiene las rutinas que realizan cada llamada
  */
 servicio tabla_servicios[NSERVICIOS] = {{sis_crear_proceso},
                                         {sis_terminar_proceso},
-                                        {sis_escribir}};
+                                        {sis_escribir},
+                                        {sis_nueva}};
 
 #endif /* _KERNEL_H */
 

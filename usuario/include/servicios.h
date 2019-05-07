@@ -32,5 +32,7 @@ int terminar_proceso();
 
 int escribir(char *texto, unsigned int longi);
 
+int obtener_id_pr();
+
 #endif /* SERVICIOS_H */
 

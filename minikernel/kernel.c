@@ -324,6 +324,9 @@ int sis_terminar_proceso() {
     return 0; /* no deber�a llegar aqui */
 }
 
+int sis_nueva(){
+    return p_proc_actual -> id;
+}
 /*
  *
  * Rutina de inicializaci�n invocada en arranque
