@@ -22,6 +22,14 @@
  *
  */
 
+void blockActualProc();
+
+void setInterruptionLevel();
+
+void addProcToBlockedList();
+
+void blockProc(BCP *pBcp);
+
 /*
  * Funci�n que inicia la tabla de procesos
  */
@@ -330,9 +338,26 @@ int sis_nueva() {
 
 int sis_dormir() {
 
-    p_proc_actual->estado = BLOQUEADO;
-    p_proc_actual->nSegBloqueado = leer_registro(1);
+    blockProc(p_proc_actual);
+    int int_level = fijar_nivel_int(NIVEL_3);
+    addProcToBlockedList(p_proc_actual);
+    fijar_nivel_int(int_level);
+    //TODO: switch context
+
+
 }
+
+void blockProc(BCP *proc) {
+    proc->estado = BLOQUEADO;
+    proc->nSegBlocked = (unsigned int) leer_registro(1);
+    proc->startBlockAt = int_clock_counter;
+}
+
+void addProcToBlockedList(BCP *proc) {
+    eliminar_elem(&lista_listos, proc);
+    insertar_ultimo(&lista_blocked, proc);
+}
+
 
 /*
  *

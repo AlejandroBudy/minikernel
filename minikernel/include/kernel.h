@@ -22,6 +22,11 @@
 #include "HAL.h"
 #include "llamsis.h"
 
+
+/**********************************************************
+ ********************    STRUCTURES    ********************
+ **********************************************************
+ */
 /*
  *
  * Definicion del tipo que corresponde con el BCP.
@@ -31,13 +36,14 @@
 typedef struct BCP_t *BCPptr;
 
 typedef struct BCP_t {
-    int id;                /* ident. del proceso */
-    int estado;            /* TERMINADO|LISTO|EJECUCION|BLOQUEADO*/
-    int nSegBloqueado;
-    contexto_t contexto_regs;    /* copia de regs. de UCP */
-    void *pila;            /* dir. inicial de la pila */
-    BCPptr siguiente;        /* puntero a otro BCP */
-    void *info_mem;            /* descriptor del mapa de memoria */
+    int id;                     /* ident. del proceso */
+    int estado;                 /* TERMINADO|LISTO|EJECUCION|BLOQUEADO*/
+    int nSegBlocked;            /* Numero de segundos que el proceso estara bloqueado */
+    int startBlockAt;           /* Numero de segundos que el proceso estara bloqueado */
+    contexto_t contexto_regs;   /* copia de regs. de UCP */
+    void *pila;                 /* dir. inicial de la pila */
+    BCPptr siguiente;           /* puntero a otro BCP */
+    void *info_mem;             /* descriptor del mapa de memoria */
 } BCP;
 
 /*
@@ -55,6 +61,22 @@ typedef struct {
 
 
 /*
+ *
+ * Definici�n del tipo que corresponde con una entrada en la tabla de
+ * llamadas al sistema.
+ *
+ */
+typedef struct {
+    int (*fservicio)();
+} servicio;
+
+
+/**********************************************************
+ ******************** GLOBAL VARIABLES ********************
+ **********************************************************
+ */
+
+/*
  * Variable global que identifica el proceso actual
  */
 
@@ -66,21 +88,27 @@ BCP *p_proc_actual = NULL;
 
 BCP tabla_procs[MAX_PROC];
 
+
 /*
  * Variable global que representa la cola de procesos listos
  */
 lista_BCPs lista_listos = {NULL, NULL};
 
-/*
- *
- * Definici�n del tipo que corresponde con una entrada en la tabla de
- * llamadas al sistema.
- *
- */
-typedef struct {
-    int (*fservicio)();
-} servicio;
 
+/*
+ * Variable global que representa la cola de procesos bloqueados
+ */
+lista_BCPs lista_blocked = {NULL, NULL};
+
+/*
+ * Variable global contador de llamadas al int_reloj
+ */
+int int_clock_counter = 0;
+
+/**********************************************************
+ ********************     ROUTINES     ********************
+ **********************************************************
+ */
 
 /*
  * Prototipos de las rutinas que realizan cada llamada al sistema
