@@ -324,9 +324,16 @@ int sis_terminar_proceso() {
     return 0; /* no deber�a llegar aqui */
 }
 
-int sis_nueva(){
-    return p_proc_actual -> id;
+int sis_nueva() {
+    return p_proc_actual->id;
 }
+
+int sis_dormir() {
+
+    p_proc_actual->estado = BLOQUEADO;
+    p_proc_actual->nSegBloqueado = leer_registro(1);
+}
+
 /*
  *
  * Rutina de inicializaci�n invocada en arranque

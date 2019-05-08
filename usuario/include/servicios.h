@@ -34,5 +34,7 @@ int escribir(char *texto, unsigned int longi);
 
 int obtener_id_pr();
 
+int dormir(unsigned int segundos);
+
 #endif /* SERVICIOS_H */
 

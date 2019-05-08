@@ -33,6 +33,7 @@ typedef struct BCP_t *BCPptr;
 typedef struct BCP_t {
     int id;                /* ident. del proceso */
     int estado;            /* TERMINADO|LISTO|EJECUCION|BLOQUEADO*/
+    int nSegBloqueado;
     contexto_t contexto_regs;    /* copia de regs. de UCP */
     void *pila;            /* dir. inicial de la pila */
     BCPptr siguiente;        /* puntero a otro BCP */
@@ -92,13 +93,16 @@ int sis_escribir();
 
 int sis_nueva();
 
+int sis_dormir();
+
 /*
  * Variable global que contiene las rutinas que realizan cada llamada
  */
 servicio tabla_servicios[NSERVICIOS] = {{sis_crear_proceso},
                                         {sis_terminar_proceso},
                                         {sis_escribir},
-                                        {sis_nueva}};
+                                        {sis_nueva},
+                                        {sis_dormir}};
 
 #endif /* _KERNEL_H */
 

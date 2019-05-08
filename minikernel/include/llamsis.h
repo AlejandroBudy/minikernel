@@ -25,6 +25,8 @@
 #define TERMINAR_PROCESO 1
 #define ESCRIBIR 2
 #define OBTENER_ID_PR 3
+#define DORMIR 4
+
 
 #endif /* _LLAMSIS_H */
 
