@@ -227,6 +227,29 @@ static void int_reloj() {
     }
 
     int_clock_counter++;
+
+    BCP *first_blocked = lista_blocked.primero;
+    while (first_blocked != NULL) {
+        printf("******************** HAY PROCESO BLOCKED (%d)\n", first_blocked->id);
+        int seg_left =
+                (first_blocked->nSegBlocked * TICK) - (int_clock_counter - first_blocked->startBlockAt);
+
+        printf("******************** LE QUEDAN (%d)\n", seg_left);
+        if (seg_left <= 0) {
+            printf("******************** DESBLOQUEAMOS \n");
+            first_blocked->estado = LISTO;
+            int int_level = fijar_nivel_int(NIVEL_3);
+            eliminar_elem(&lista_blocked, first_blocked);
+            insertar_ultimo(&lista_listos, first_blocked);
+            fijar_nivel_int(int_level);
+            printf("******************** DONE \n");
+
+        }
+        printf("******************** PASAMOS SIGUIENTE\n");
+        BCPptr next_blocked = first_blocked->siguiente;
+        first_blocked = next_blocked;
+    }
+    printf("******************** NO HAY PROCESO BLOCKED \n");
     return;
 }
 
@@ -349,13 +372,25 @@ int sis_nueva() {
 
 int sis_dormir() {
 
-    blockProc(p_proc_actual);
-    int int_level = fijar_nivel_int(NIVEL_3);
-    addProcToBlockedList(p_proc_actual);
-    fijar_nivel_int(int_level);
-    switchContext(p_proc_actual);
+    unsigned int seg = (unsigned int) leer_registro(1);
+    printf("******************** Dormir: (%d) segundos \n", seg);
+    p_proc_actual->estado = BLOQUEADO;
+    p_proc_actual->nSegBlocked = seg;
+    p_proc_actual->startBlockAt = int_clock_counter;
 
-    return SUCCESS;
+    int int_level = fijar_nivel_int(NIVEL_3);
+
+    eliminar_elem(&lista_listos, p_proc_actual);
+    insertar_ultimo(&lista_blocked, p_proc_actual);
+
+    fijar_nivel_int(int_level);
+
+    BCP *p_proc_blocked = p_proc_actual;
+    p_proc_actual = planificador();
+    cambio_contexto(&(p_proc_blocked->contexto_regs), &(p_proc_actual->contexto_regs));
+
+
+    return 0;
 
 }
 
@@ -370,6 +405,7 @@ int sis_tiempos_proceso() {
 
     t_ejec->usuario = p_proc_actual->intUsuario;
     t_ejec->sistema = p_proc_actual->intSistema;
+
 
     return int_clock_counter;
 }
