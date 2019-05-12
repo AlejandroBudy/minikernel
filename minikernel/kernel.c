@@ -15,6 +15,9 @@
 
 #include "kernel.h"    /* Contiene defs. usadas por este modulo */
 
+
+#define SUCCESS 0
+
 /*
  *
  * Funciones relacionadas con la tabla de procesos:
@@ -29,6 +32,8 @@ void setInterruptionLevel();
 void addProcToBlockedList();
 
 void blockProc(BCP *pBcp);
+
+void switchContext();
 
 /*
  * Funci�n que inicia la tabla de procesos
@@ -187,7 +192,7 @@ static void exc_arit() {
  */
 static void exc_mem() {
 
-    if (!viene_de_modo_usuario())
+    if (!viene_de_modo_usuario() && memAccess == 0)
         panico("excepcion de memoria cuando estaba dentro del kernel");
 
 
@@ -216,6 +221,12 @@ static void int_reloj() {
 
     printk("-> TRATANDO INT. DE RELOJ\n");
 
+    if (lista_listos.primero != NULL) {
+        if (viene_de_modo_usuario())p_proc_actual->intUsuario++;
+        else p_proc_actual->intSistema++;
+    }
+
+    int_clock_counter++;
     return;
 }
 
@@ -342,10 +353,35 @@ int sis_dormir() {
     int int_level = fijar_nivel_int(NIVEL_3);
     addProcToBlockedList(p_proc_actual);
     fijar_nivel_int(int_level);
-    //TODO: switch context
+    switchContext(p_proc_actual);
 
+    return SUCCESS;
 
 }
+
+int sis_tiempos_proceso() {
+    struct tiempos_ejec *t_ejec = (struct tiempos_ejec *) leer_registro(1);
+    if (t_ejec == NULL)
+        return int_clock_counter;
+
+    int int_level = fijar_nivel_int(NIVEL_3);
+    memAccess = 1;
+    fijar_nivel_int(int_level);
+
+    t_ejec->usuario = p_proc_actual->intUsuario;
+    t_ejec->sistema = p_proc_actual->intSistema;
+
+    return int_clock_counter;
+}
+
+
+/******************************************
+ * ****************************************
+ * ******** Funciones auxiliares **********
+ * ****************************************
+ * ****************************************
+ */
+
 
 void blockProc(BCP *proc) {
     proc->estado = BLOQUEADO;
@@ -356,6 +392,12 @@ void blockProc(BCP *proc) {
 void addProcToBlockedList(BCP *proc) {
     eliminar_elem(&lista_listos, proc);
     insertar_ultimo(&lista_blocked, proc);
+}
+
+void switchContext(BCP *proc_to_switch) {
+    BCP *p_proc_blocked = proc_to_switch;
+    p_proc_actual = planificador();
+    cambio_contexto(&(p_proc_blocked->contexto_regs), &(p_proc_actual->contexto_regs));
 }
 
 

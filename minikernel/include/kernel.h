@@ -44,6 +44,8 @@ typedef struct BCP_t {
     void *pila;                 /* dir. inicial de la pila */
     BCPptr siguiente;           /* puntero a otro BCP */
     void *info_mem;             /* descriptor del mapa de memoria */
+    int intSistema;            /* interrupciones en modo sistema */
+    int intUsuario;            /* interrupciones en modo usuario */
 } BCP;
 
 /*
@@ -69,6 +71,14 @@ typedef struct {
 typedef struct {
     int (*fservicio)();
 } servicio;
+
+/*
+ * Definicion de la estructura que almacena informacion de cuantas veces se esta ejecutando en usuario y sistema
+ */
+struct tiempos_ejec {
+    int usuario;
+    int sistema;
+};
 
 
 /**********************************************************
@@ -105,6 +115,11 @@ lista_BCPs lista_blocked = {NULL, NULL};
  */
 int int_clock_counter = 0;
 
+/*
+ * Variable global flag para evitar panico cuando se accede erroneamente
+ */
+int memAccess;
+
 /**********************************************************
  ********************     ROUTINES     ********************
  **********************************************************
@@ -123,6 +138,8 @@ int sis_nueva();
 
 int sis_dormir();
 
+int sis_tiempos_proceso();
+
 /*
  * Variable global que contiene las rutinas que realizan cada llamada
  */
@@ -130,7 +147,8 @@ servicio tabla_servicios[NSERVICIOS] = {{sis_crear_proceso},
                                         {sis_terminar_proceso},
                                         {sis_escribir},
                                         {sis_nueva},
-                                        {sis_dormir}};
+                                        {sis_dormir},
+                                        {sis_tiempos_proceso}};
 
 #endif /* _KERNEL_H */
 
