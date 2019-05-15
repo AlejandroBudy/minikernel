@@ -18,9 +18,19 @@
 #ifndef _KERNEL_H
 #define _KERNEL_H
 
+
 #include "const.h"
 #include "HAL.h"
 #include "llamsis.h"
+
+
+/**********************************************************
+ ********************    DEFINITION    ********************
+ **********************************************************
+ */
+
+#define NO_RECURSIVO 0
+#define RECURSIVO 1
 
 
 /**********************************************************
@@ -46,6 +56,10 @@ typedef struct BCP_t {
     void *info_mem;             /* descriptor del mapa de memoria */
     int intSistema;            /* interrupciones en modo sistema */
     int intUsuario;            /* interrupciones en modo usuario */
+    int nMutex;                /* Contador del numero de mutex */
+    int mutexBlock;            /* Flag bloqueado por mutex */
+    int mutexList[NUM_MUT_PROC];
+
 } BCP;
 
 /*
@@ -80,6 +94,22 @@ struct tiempos_ejec {
     int sistema;
 };
 
+typedef struct mutex_t *mutex_ptr;
+
+typedef struct mutex_t{
+    int index;
+    char nombre[MAX_NOM_MUT];
+    int tipo;
+    int proceso_bloqueado;
+    int num_procesos;
+    mutex_ptr siguiente;
+
+}mutex;
+
+typedef struct {
+    mutex *primero;
+    mutex *ultimo;
+} lista_Mutex;
 
 /**********************************************************
  ******************** GLOBAL VARIABLES ********************
@@ -120,6 +150,17 @@ int int_clock_counter = 0;
  */
 int memAccess;
 
+/*
+ * Lista global con los mutex que hay disponibles
+ */
+lista_Mutex lista_mutex = {NULL, NULL};
+
+/*
+ * Variable global que lleva el contador del numero de mutex en el sistema
+ */
+
+int cont_mutex = 0;
+
 /**********************************************************
  ********************     ROUTINES     ********************
  **********************************************************
@@ -140,6 +181,16 @@ int sis_dormir();
 
 int sis_tiempos_proceso();
 
+int sis_crear_mutex();
+
+int sis_abrir_mutex();
+
+int sis_lock();
+
+int sis_unlock();
+
+int sis_cerrar_mutex();
+
 /*
  * Variable global que contiene las rutinas que realizan cada llamada
  */
@@ -148,7 +199,13 @@ servicio tabla_servicios[NSERVICIOS] = {{sis_crear_proceso},
                                         {sis_escribir},
                                         {sis_nueva},
                                         {sis_dormir},
-                                        {sis_tiempos_proceso}};
+                                        {sis_tiempos_proceso},
+                                        {sis_crear_mutex},
+                                        {sis_abrir_mutex},
+                                        {sis_lock},
+                                        {sis_unlock},
+                                        {sis_cerrar_mutex}
+};
 
 #endif /* _KERNEL_H */
 

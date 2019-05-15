@@ -13,8 +13,10 @@
  *
  */
 
+#include <stdbool.h>
 #include "kernel.h"    /* Contiene defs. usadas por este modulo */
-
+#include "string.h"
+#include <stdlib.h>
 
 #define SUCCESS 0
 
@@ -31,9 +33,24 @@ void setInterruptionLevel();
 
 void addProcToBlockedList();
 
-void blockProc(BCP *pBcp);
+void bloquearProceso(BCP *proc);
 
 void switchContext();
+
+bool verificaCondiciones(const char *nombre);
+
+bool nombreMutexRepetido(const char *nombre);
+
+
+void anadirProcesoAListaBloqueados(BCP *proc);
+
+
+void insertar_mutex(lista_Mutex *lista, mutex *proc);
+
+
+void crearMutex(char *nombre, int tipo);
+
+int getDescriptor();
 
 /*
  * Funci�n que inicia la tabla de procesos
@@ -235,7 +252,8 @@ static void int_reloj() {
                 (first_blocked->nSegBlocked * TICK) - (int_clock_counter - first_blocked->startBlockAt);
 
         printf("******************** LE QUEDAN (%d)\n", seg_left);
-        if (seg_left <= 0) {
+        if (seg_left <= 0 &&
+            first_blocked->mutexBlock != 1) {
             printf("******************** DESBLOQUEAMOS \n");
             first_blocked->estado = LISTO;
             int int_level = fijar_nivel_int(NIVEL_3);
@@ -307,7 +325,11 @@ static int crear_tarea(char *prog) {
                            &(p_proc->contexto_regs));
         p_proc->id = proc;
         p_proc->estado = LISTO;
-
+        p_proc->nMutex = 0;
+        p_proc->mutexBlock = 0;
+        for (int i = 0; i < NUM_MUT_PROC; i++) {
+            p_proc->mutexList[i] = -1;
+        }
         /* lo inserta al final de cola de listos */
         insertar_ultimo(&lista_listos, p_proc);
         error = 0;
@@ -378,12 +400,7 @@ int sis_dormir() {
     p_proc_actual->nSegBlocked = seg;
     p_proc_actual->startBlockAt = int_clock_counter;
 
-    int int_level = fijar_nivel_int(NIVEL_3);
-
-    eliminar_elem(&lista_listos, p_proc_actual);
-    insertar_ultimo(&lista_blocked, p_proc_actual);
-
-    fijar_nivel_int(int_level);
+    anadirProcesoAListaBloqueados(p_proc_actual);
 
     BCP *p_proc_blocked = p_proc_actual;
     p_proc_actual = planificador();
@@ -410,6 +427,73 @@ int sis_tiempos_proceso() {
     return int_clock_counter;
 }
 
+int sis_crear_mutex() {
+
+    char *nombre = (char *) leer_registro(1);
+    int tipo = (int) leer_registro(2);
+
+    printf("\n\n******************** PROCEDEMOS A CREAR EL MUTEX %s DEL TIPO %d\n", nombre, tipo);
+
+    if (!verificaCondiciones(nombre)) {
+        printf("******************** ERROR: NO SE HA VERIFICADO LAS CONDICIONES NECESARIAS\n");
+        return -1;
+    }
+
+    printf("******************** SE VERIFICAN TODAS LAS CONDICIONES NECESARIAS\n");
+
+    while (cont_mutex >= NUM_MUT) {
+        printf("******************** NUMERO MAXIMO DE MUTEX EN EL SISTEMA EXCEDIDO\n");
+
+        p_proc_actual->estado = BLOQUEADO;
+        p_proc_actual->mutexBlock = 1;
+        anadirProcesoAListaBloqueados(p_proc_actual);
+
+        printf("******************** CAMBIAMOS CONTEXTO DEL PROC %d\n", p_proc_actual->id);
+        BCP *p_proc_blocked = p_proc_actual;
+        p_proc_actual = planificador();
+        cambio_contexto(&(p_proc_blocked->contexto_regs), &(p_proc_actual->contexto_regs));
+
+        printf("******************** VOLVEMOS A VERIFICAR NOMBRE %s DEL PROC %d\n", nombre, p_proc_actual->id);
+        if (!verificaCondiciones(nombre))return -1;
+    }
+    printf("******************** NUMERO MAXIMO DE MUTEX EN EL SISTEMA OK\n");
+
+    crearMutex(nombre, tipo);
+    int descriptor = getDescriptor();
+    printf("******************** ASIGNAMOS DESCRIPTOR %d\n", descriptor);
+    p_proc_actual->mutexList[descriptor] = cont_mutex++;
+
+    printf("******************** FIN CREAR MUTEX\n\n");
+    return p_proc_actual->nMutex++;
+
+
+}
+
+int getDescriptor() {
+    for (int i = 0; i < NUM_MUT_PROC; ++i) {
+        if (p_proc_actual->mutexList[i] == -1) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+
+int sis_abrir_mutex() {
+
+}
+
+int sis_lock() {
+
+}
+
+int sis_unlock() {
+
+}
+
+int sis_cerrar_mutex() {
+
+}
 
 /******************************************
  * ****************************************
@@ -418,24 +502,67 @@ int sis_tiempos_proceso() {
  * ****************************************
  */
 
+void anadirProcesoAListaBloqueados(BCP *proc) {
+    int int_level = fijar_nivel_int(NIVEL_3);
+    eliminar_elem(&lista_listos, proc);
+    insertar_ultimo(&lista_blocked, proc);
+    fijar_nivel_int(int_level);
+}
 
-void blockProc(BCP *proc) {
+void bloquearProceso(BCP *proc) {
     proc->estado = BLOQUEADO;
     proc->nSegBlocked = (unsigned int) leer_registro(1);
     proc->startBlockAt = int_clock_counter;
+    anadirProcesoAListaBloqueados(proc);
 }
 
-void addProcToBlockedList(BCP *proc) {
-    eliminar_elem(&lista_listos, proc);
-    insertar_ultimo(&lista_blocked, proc);
+bool verificaCondiciones(const char *nombre) {
+
+    return strlen(nombre) <= MAX_NOM_MUT
+           && p_proc_actual->nMutex <= NUM_MUT_PROC
+           && !nombreMutexRepetido(nombre);
 }
 
-void switchContext(BCP *proc_to_switch) {
-    BCP *p_proc_blocked = proc_to_switch;
-    p_proc_actual = planificador();
-    cambio_contexto(&(p_proc_blocked->contexto_regs), &(p_proc_actual->contexto_regs));
+bool nombreMutexRepetido(const char *nombre) {
+    mutex *mutex_primero = lista_mutex.primero;
+    bool repetido = false;
+    while (mutex_primero != NULL && !repetido) {
+        // printf("******************** NOMBRE %s......\n", mutex_primero->nombre);
+        if (strcmp(mutex_primero->nombre, nombre) == 0) {
+            repetido = true;
+        }
+        mutex *mutex_next = mutex_primero->siguiente;
+        mutex_primero = mutex_next;
+    }
+    //printf("******************** ........ EL NOMBRE ESTA REPETIDO  %s\n", repetido ? "true" : "false");
+    return repetido;
 }
 
+void insertar_mutex(lista_Mutex *lista, mutex *proc) {
+    if (lista->primero == NULL)
+        lista->primero = proc;
+    else
+        lista->ultimo->siguiente = proc;
+    lista->ultimo = proc;
+    proc->siguiente = NULL;
+}
+
+void crearMutex(char *nombre, int tipo) {
+    printf("******************** CREAMOS MUTEX\n");
+    mutex *nuevo_mutex = malloc(sizeof(mutex));
+    printf("******************** init mutex con index %d\n", nuevo_mutex->index);
+    nuevo_mutex->index = cont_mutex;
+    printf("******************** init mutex con nombre %s\n", nombre);
+    strcpy(nuevo_mutex->nombre, nombre);
+    printf("******************** copiado nombre %s\n", nuevo_mutex->nombre);
+    nuevo_mutex->tipo = tipo;
+    printf("******************** del tipo %d\n", tipo);
+    nuevo_mutex->num_procesos = 1;
+    printf("********************  incrementado numero de procesos %d\n", nuevo_mutex->num_procesos);
+    nuevo_mutex->proceso_bloqueado = p_proc_actual->id;
+    printf("******************** INSERTAMOS MUTEX EN LISTA\n");
+    insertar_mutex(&lista_mutex, nuevo_mutex);
+}
 
 /*
  *
