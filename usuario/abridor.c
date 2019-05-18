@@ -1,9 +1,9 @@
 /*
  * usuario/abridor.c
  *
- *  Minikernel. Versión 1.0
+ *  Minikernel. Versiï¿½n 1.0
  *
- *  Fernando Pérez Costoya
+ *  Fernando Pï¿½rez Costoya
  *
  */
 
@@ -20,7 +20,7 @@ int main(){
 	printf("abridor comienza\n");
 
 	/* abre mutex que no existe */
-	if (abrir_mutex("m0")<0)
+	if (abrir_mutex("m0")>0)
 		printf("error abriendo m0. DEBE SALIR\n");
 
 	if ((desc=abrir_mutex("m1"))<0)
@@ -36,16 +36,17 @@ int main(){
 		printf("error abriendo m4. NO DEBE SALIR\n");
 
 	/* Error: ha agotado los descriptores */
-	if (abrir_mutex("m5")<0)
+	if (abrir_mutex("m5")>0)
 		printf("error abriendo m5. DEBE SALIR\n");
 
 	/* libera un descriptor de mutex (m1) */
+    printf("\n-----------------------------CERRAMOS-----------------------------\n");
 	cerrar_mutex(desc);
 
 	/* Agotado num mutex del sistema. Debe bloquearse */
 	if (crear_mutex("m17", 0)<0)
 		printf("error creando m17. NO DEBE SALIR\n");
-	/* se desbloqueará cuando se elimine m1 */
+	/* se desbloquearï¿½ cuando se elimine m1 */
 
 	/* intenta crear el mismo mutex: devuelve un error porque ya existe */
 	if (crear_mutex("m17", 0)<0)

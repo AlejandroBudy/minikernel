@@ -59,6 +59,7 @@ typedef struct BCP_t {
     int nMutex;                /* Contador del numero de mutex */
     int mutexBlock;            /* Flag bloqueado por mutex */
     int mutexList[NUM_MUT_PROC];
+    int mutex_id;
 
 } BCP;
 
@@ -160,6 +161,12 @@ lista_Mutex lista_mutex = {NULL, NULL};
  */
 
 int cont_mutex = 0;
+
+/*
+ * Variable global generadora de indices de mutex
+ */
+
+int cont_mutex_index = 0;
 
 /**********************************************************
  ********************     ROUTINES     ********************
