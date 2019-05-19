@@ -302,7 +302,7 @@ static void int_reloj() {
         //printf("******************** HAY PROCESO BLOCKED (%d)\n", first_blocked->id);
         int seg_left =
                 (first_blocked->nSegBlocked * TICK) - (int_clock_counter - first_blocked->startBlockAt);
-
+        BCPptr next_blocked = first_blocked->siguiente;
         // printf("******************** LE QUEDAN (%d)\n", seg_left);
         if (seg_left <= 0 &&
             first_blocked->mutexBlock != 1) {
@@ -313,7 +313,7 @@ static void int_reloj() {
 
         }
         //  printf("******************** PASAMOS SIGUIENTE\n");
-        BCPptr next_blocked = first_blocked->siguiente;
+
         first_blocked = next_blocked;
     }
     // printf("******************** NO HAY PROCESO BLOCKED\n\n");
@@ -491,7 +491,7 @@ int sis_crear_mutex() {
         return -1;
     }
 
-    // printf("******************** SE VERIFICAN TODAS LAS CONDICIONES NECESARIAS\n");
+    printf("******************** HAY %d mutex en el sistema\n", cont_mutex);
 
     while (cont_mutex >= NUM_MUT) {
         // printf("******************** NUMERO MAXIMO DE MUTEX EN EL SISTEMA EXCEDIDO\n");
