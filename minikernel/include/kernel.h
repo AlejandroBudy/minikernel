@@ -58,6 +58,7 @@ typedef struct BCP_t {
     int intUsuario;            /* interrupciones en modo usuario */
     int nMutex;                /* Contador del numero de mutex */
     int mutexBlock;            /* Flag bloqueado por mutex */
+    int readBlock;             /* Flag bloqueado por lectura de caracter*/
     int mutexList[NUM_MUT_PROC];
     int mutex_id;
 
@@ -97,7 +98,7 @@ struct tiempos_ejec {
 
 typedef struct mutex_t *mutex_ptr;
 
-typedef struct mutex_t{
+typedef struct mutex_t {
     int index;
     char nombre[MAX_NOM_MUT];
     int tipo;
@@ -105,7 +106,7 @@ typedef struct mutex_t{
     int num_procesos;
     mutex_ptr siguiente;
 
-}mutex;
+} mutex;
 
 typedef struct {
     mutex *primero;
@@ -168,6 +169,17 @@ int cont_mutex = 0;
 
 int cont_mutex_index = 0;
 
+/*
+  * Variable global numero de caracteres en buffer
+  */
+int size_buffer = 0;
+
+
+/*
+ * Buffer de caracteres procesados del terminal
+ */
+char buffer[TAM_BUF_TERM];
+
 /**********************************************************
  ********************     ROUTINES     ********************
  **********************************************************
@@ -198,6 +210,8 @@ int sis_unlock();
 
 int sis_cerrar_mutex();
 
+int sis_leer_caracter();
+
 /*
  * Variable global que contiene las rutinas que realizan cada llamada
  */
@@ -211,7 +225,8 @@ servicio tabla_servicios[NSERVICIOS] = {{sis_crear_proceso},
                                         {sis_abrir_mutex},
                                         {sis_lock},
                                         {sis_unlock},
-                                        {sis_cerrar_mutex}
+                                        {sis_cerrar_mutex},
+                                        {sis_leer_caracter}
 };
 
 #endif /* _KERNEL_H */

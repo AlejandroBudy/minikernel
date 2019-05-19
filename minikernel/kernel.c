@@ -282,6 +282,51 @@ static void int_terminal() {
     car = leer_puerto(DIR_TERMINAL);
     printk("-> TRATANDO INT. DE TERMINAL %c\n", car);
 
+    if (size_buffer >= TAM_BUF_TERM) {
+        printf("TAMANO DEL BUFFER EXCEDIDO %d\n", size_buffer);
+        return;
+    }
+
+    printf("METEMOS EN BUFFER\n");
+    buffer[size_buffer] = car;
+    size_buffer++;
+
+    BCP *proc_blocked = lista_blocked.primero;
+    bool desbloqueado = false;
+
+
+    if (proc_blocked != NULL && proc_blocked->readBlock == 1) {
+        printf("PRIMERO BLOQUEADO POR LECTURA, DESBLOQUEAMOS\n");
+        desbloqueado = true;
+        proc_blocked->estado = LISTO;
+        proc_blocked->readBlock = 0;
+
+        int int_level = fijar_nivel_int(NIVEL_3);
+        eliminar_elem(&lista_blocked, proc_blocked);
+        insertar_ultimo(&lista_listos, proc_blocked);
+        fijar_nivel_int(int_level);
+
+    }
+
+    while (!desbloqueado && proc_blocked != lista_blocked.ultimo) {
+        printf("SEGUIMOS DESBLOQUEANDO\n");
+        proc_blocked = proc_blocked->siguiente;
+        if (proc_blocked->readBlock == 1) {
+
+            desbloqueado = true;
+            proc_blocked->estado = LISTO;
+            proc_blocked->readBlock = 0;
+
+            printf("CAMBIO DE CONTEXTO\n");
+            int int_level = fijar_nivel_int(NIVEL_3);
+            eliminar_elem(&lista_blocked, proc_blocked);
+            insertar_ultimo(&lista_listos, proc_blocked);
+            fijar_nivel_int(int_level);
+
+        }
+    }
+
+
     return;
 }
 
@@ -376,6 +421,7 @@ static int crear_tarea(char *prog) {
         p_proc->estado = LISTO;
         p_proc->nMutex = 0;
         p_proc->mutexBlock = 0;
+        p_proc->readBlock = 0;
         p_proc->mutex_id = -1;
         int i;
         for (i = 0; i < NUM_MUT_PROC; i++) {
@@ -673,6 +719,40 @@ int sis_cerrar_mutex() {
 
     printf("\n\n::::::::::::MUTEX ELIMINADO %d\n", descriptor);
     return 0;
+}
+
+
+int sis_leer_caracter() {
+
+    printf("\n\nCOMIENZA LEER CARACTER\n");
+    int int_level = fijar_nivel_int(NIVEL_2);
+
+    while (size_buffer == 0) {
+        //printf("BUFFER VACIO\n");
+        p_proc_actual->estado = BLOQUEADO;
+        p_proc_actual->readBlock = 1;
+
+        int int_level_2 = fijar_nivel_int(NIVEL_3);
+        eliminar_elem(&lista_listos, p_proc_actual);
+        insertar_ultimo(&lista_blocked, p_proc_actual);
+        fijar_nivel_int(int_level_2);
+
+        BCP *p_proc_blocked = p_proc_actual;
+        p_proc_actual = planificador();
+        cambio_contexto(&(p_proc_blocked->contexto_regs), &(p_proc_actual->contexto_regs));
+    }
+
+    printf("BUFFER NO VACIO\n");
+    char primer_car = buffer[0];
+    printf("LEIDO PRIMER CARACTER\n");
+    size_buffer--;
+    int i;
+    for (i = 0; i < size_buffer; i++) {
+        buffer[i] = buffer[i + 1];
+    }
+    fijar_nivel_int(int_level);
+
+    return primer_car;
 }
 
 /******************************************
