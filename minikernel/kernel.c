@@ -650,6 +650,7 @@ int sis_unlock() {
     bool encontrado = false;
 
     while (proceso_bloqueado != NULL && !encontrado) {
+        BCP *proceso_siguiente = proceso_bloqueado->siguiente;
         if (proceso_bloqueado->estado == BLOQUEADO
             && proceso_bloqueado->mutex_id == mutex_id) {
             proceso_bloqueado->estado = LISTO;
@@ -660,7 +661,7 @@ int sis_unlock() {
 
             encontrado = true;
         }
-        proceso_bloqueado = proceso_bloqueado->siguiente;
+        proceso_bloqueado = proceso_siguiente;
     }
     return 0;
 }
@@ -687,6 +688,7 @@ int sis_cerrar_mutex() {
     bool encontrado = false;
     while (proceso_bloqueado != NULL && !encontrado) {
         printf("::::::::::::BUSCAMOS PROCESO BLOQUEADO POR MUTEX\n");
+        BCP *proceso_siguiente = proceso_bloqueado->siguiente;
         if (proceso_bloqueado->estado == BLOQUEADO
             && proceso_bloqueado->mutex_id == mutex_id) {
             printf("::::::::::::PROCESO ENCONTRADO: %d\n", proceso_bloqueado->id);
@@ -695,7 +697,7 @@ int sis_cerrar_mutex() {
             eliminarProcesoListaBloqueados(proceso_bloqueado);
             encontrado = true;
         }
-        proceso_bloqueado = proceso_bloqueado->siguiente;
+        proceso_bloqueado = proceso_siguiente;
     }
     if (mutex1->num_procesos > 0)
         return 0;
@@ -707,6 +709,7 @@ int sis_cerrar_mutex() {
 
     proceso_bloqueado = lista_blocked.primero;
     while (proceso_bloqueado != NULL) {
+        BCP *proceso_siguiente = proceso_bloqueado->siguiente;
         if (proceso_bloqueado->estado == BLOQUEADO
             && proceso_bloqueado->mutexBlock == 1) {
             proceso_bloqueado->estado = LISTO;
@@ -714,7 +717,7 @@ int sis_cerrar_mutex() {
             eliminarProcesoListaBloqueados(proceso_bloqueado);
             break;
         }
-        proceso_bloqueado = proceso_bloqueado->siguiente;
+        proceso_bloqueado = proceso_siguiente;
     }
 
     printf("\n\n::::::::::::MUTEX ELIMINADO %d\n", descriptor);
