@@ -59,6 +59,7 @@ typedef struct BCP_t {
     int nMutex;                /* Contador del numero de mutex */
     int mutexBlock;            /* Flag bloqueado por mutex */
     int readBlock;             /* Flag bloqueado por lectura de caracter*/
+    int ticks_restantes;
     int mutexList[NUM_MUT_PROC];
     int mutex_id;
 
@@ -179,6 +180,12 @@ int size_buffer = 0;
  * Buffer de caracteres procesados del terminal
  */
 char buffer[TAM_BUF_TERM];
+
+
+/*
+  * Variable global que guarda el id del proceso que causa la int de sw
+  */
+int p_proc_int = -1;
 
 /**********************************************************
  ********************     ROUTINES     ********************

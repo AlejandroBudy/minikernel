@@ -149,6 +149,8 @@ static void espera_int() {
 static BCP *planificador() {
     while (lista_listos.primero == NULL)
         espera_int();        /* No hay nada que hacer */
+
+    lista_listos.primero->ticks_restantes = TICKS_POR_RODAJA;
     return lista_listos.primero;
 }
 
@@ -340,6 +342,14 @@ static void int_reloj() {
     if (lista_listos.primero != NULL) {
         if (viene_de_modo_usuario())p_proc_actual->intUsuario++;
         else p_proc_actual->intSistema++;
+
+        if (p_proc_actual->ticks_restantes > 1) {
+            p_proc_actual->ticks_restantes--;
+        } else {
+            p_proc_int = p_proc_actual->id;
+            activar_int_SW();
+        }
+
     }
 
     BCP *first_blocked = lista_blocked.primero;
@@ -386,6 +396,18 @@ static void tratar_llamsis() {
 static void int_sw() {
 
     printk("-> TRATANDO INT. SW\n");
+
+    if (p_proc_int != p_proc_actual->id)return;
+    BCP *proceso_listo = lista_listos.primero;
+
+    int int_level = fijar_nivel_int(NIVEL_3);
+    eliminar_elem(&lista_listos, proceso_listo);
+    insertar_ultimo(&lista_listos, proceso_listo);
+    fijar_nivel_int(int_level);
+
+    BCP *p_proc_blocked = p_proc_actual;
+    p_proc_actual = planificador();
+    cambio_contexto(&(p_proc_blocked->contexto_regs), &(p_proc_actual->contexto_regs));
 
     return;
 }
@@ -683,14 +705,18 @@ int sis_cerrar_mutex() {
     p_proc_actual->nMutex--;
     p_proc_actual->mutexList[descriptor] = -1;
 
+    if (mutex1->proceso_bloqueado == p_proc_actual->id) {
+        mutex1->proceso_bloqueado = -1;
+        mutex1->num_procesos = 0;
+    }
+
     printf("::::::::::::BUSCAMOS PROCESOS BLOQUEADOS\n");
     BCP *proceso_bloqueado = lista_blocked.primero;
     bool encontrado = false;
     while (proceso_bloqueado != NULL && !encontrado) {
         printf("::::::::::::BUSCAMOS PROCESO BLOQUEADO POR MUTEX\n");
         BCP *proceso_siguiente = proceso_bloqueado->siguiente;
-        if (proceso_bloqueado->estado == BLOQUEADO
-            && proceso_bloqueado->mutex_id == mutex_id) {
+        if (proceso_bloqueado->mutex_id == mutex_id) {
             printf("::::::::::::PROCESO ENCONTRADO: %d\n", proceso_bloqueado->id);
             proceso_bloqueado->estado = LISTO;
             proceso_bloqueado->mutex_id = -1;
@@ -884,7 +910,7 @@ void crearMutex(char *nombre, int tipo) {
     printf("******************** copiado nombre %s\n", nuevo_mutex->nombre);
     nuevo_mutex->tipo = tipo;
     printf("******************** del tipo %d\n", tipo);
-    nuevo_mutex->num_procesos = 0;
+    nuevo_mutex->num_procesos = 1;
     printf("********************  incrementado numero de procesos %d\n", nuevo_mutex->num_procesos);
     nuevo_mutex->proceso_bloqueado = p_proc_actual->id;
     printf("******************** INSERTAMOS MUTEX EN LISTA\n");
